@@ -1,6 +1,5 @@
 plugins {
     id "java-library"
-    id "org.jetbrains.kotlin.jvm" version "1.8.21"
 }
 
 dependencies {
@@ -31,12 +30,6 @@ tasks.withType(Jar){
 
 sourceCompatibility = JavaVersion.VERSION_11
 targetCompatibility = JavaVersion.VERSION_11
-
-tasks {
-    compileKotlin {
-        kotlinOptions.jvmTarget = targetCompatibility
-    }
-}
 
 apply from: '../maven_local.gradle'
 

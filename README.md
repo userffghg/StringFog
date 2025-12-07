@@ -1,47 +1,50 @@
+```markdown
 
 # StringFog
-一款自动对dex/aar/jar文件中的字符串进行加密Android插件工具，正如名字所言，给字符串加上一层雾霭，使人难以窥视其真面目。
 
-- 支持java/kotlin。
-- 支持app打包生成的apk加密。
-- 支持aar和jar等库文件加密。
-- 支持加解密算法的自主扩展。
-- 支持配置可选代码加密。
-- 完全Gradle自动化集成。
-- 不支持InstantRun。
+StringFog is an Android Gradle plugin that automatically encrypts strings inside dex/aar/jar files. As the name suggests, it wraps strings in a layer of "fog" to make them harder to inspect.
 
-**一些提示**
-> 由于我目前主要精力在[Reqable](https://reqable.com)创业项目上，StringFog的Issue处理没那么及时，非常抱歉！
-虽然我已经很久不从事Android项目的开发，但是还是会尽力将StringFog一直维护下去，如果您发现了一些可以修复的问题，欢迎提交PR。
+- Supports Java and Kotlin.
+- Works on strings in app APKs produced by the build process.
+- Can encrypt strings in library files such as AAR and JAR.
+- Supports custom encryption/decryption algorithm implementations.
+- Optional configuration to control which code is encrypted.
+- Fully integrated with Gradle automation.
+- Does not support Instant Run.
 
-### 原理
+**A note about maintenance**
+> My main focus is currently on the [Reqable](https://reqable.com) startup, so Issue responses for StringFog may be slower than before — sorry about that!
+Although I no longer work on Android full-time, I will try to maintain StringFog as much as possible. If you find issues that can be fixed, please feel free to submit a PR.
+
+### How it works
 
 ![](https://github.com/MegatronKing/StringFog/blob/master/assets/flow.png)<br>
 
-- 加密前：
+- Before encryption:
 ```java
 String a = "This is a string!";
 ```
 
-- 加密后：
+- After encryption:
 ```java
 String a = StringFog.decrypt(new byte[]{-113, 71...}, new byte[]{-23, 53});
 
 ```
 
-- 运行时：
+- At runtime:
 ```java
 decrypt: new byte[]{-113, 71...} => "This is a string!"
 ```
 
-### 混淆
-StringFog和混淆完全不冲突，也不需要配置反混淆，实际上StringFog配上混淆效果会更好！
+### ProGuard / R8
+StringFog does not conflict with code obfuscation tools — no special keep rules are required. In fact, combining StringFog with code obfuscation often improves protection.
 
-### 使用
-由于开发了gradle插件，所以在集成时非常简单，不会影响到打包的配置。插件已经上传到MavenCentral，直接引用依赖就可以。
-**jcenter已经废弃，3.0+版本取消发布**
+### Usage
+Because StringFog is provided as a Gradle plugin, integration is straightforward and won't disturb normal build configurations. The plugin is published to Maven Central — just add the plugin and the runtime implementation dependency.
 
-##### 1、在根目录build.gradle中引入插件依赖。
+Note: `jcenter` has been deprecated and publishing to `jcenter` was removed since v3.0+
+
+#### 1) Add the plugin dependency in the root `build.gradle`:
 ```groovy
 buildscript {
     repositories {
@@ -50,74 +53,74 @@ buildscript {
     dependencies {
         ...
         classpath 'com.github.megatronking.stringfog:gradle-plugin:5.2.0'
-        // 选用加解密算法库，默认实现了xor算法，也可以使用自己的加解密库。
+        // The encryption implementation library. XOR is provided by default, or use your own.
         classpath 'com.github.megatronking.stringfog:xor:5.0.0'
     }
 }
 ```
 
-##### 2、在app或lib的build.gradle中配置插件。
+#### 2) Configure the plugin in your `app` or `library` module `build.gradle`:
 ```groovy
 apply plugin: 'stringfog'
 
-// 导入RandomKeyGenerator类，如果使用HardCodeKeyGenerator，更换下类名
+// Import key generator class. If you use HardCodeKeyGenerator, change the class accordingly.
 import com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator
 import com.github.megatronking.stringfog.plugin.StringFogMode
 
 stringfog {
-    // 必要：加解密库的实现类路径，需和上面配置的加解密算法库一致。
+    // Required: the implementation class of the encryption library, must match the dependency above.
     implementation 'com.github.megatronking.stringfog.xor.StringFogImpl'
-    // 可选：StringFog会自动尝试获取packageName，如果遇到获取失败的情况，可以显式地指定。
+    // Optional: StringFog tries to obtain the packageName automatically; specify explicitly if needed.
     packageName 'com.github.megatronking.stringfog.app'
-    // 可选：加密开关，默认开启。
+    // Optional: enable/disable encryption (enabled by default).
     enable true
-    // 可选：指定需加密的代码包路径，可配置多个，未指定将默认全部加密。
+    // Optional: specify packages to encrypt (can list multiple). If omitted, all packages will be processed.
     fogPackages = ['com.xxx.xxx']
-    // 可选（3.0版本新增）：指定密钥生成器，默认使用长度8的随机密钥（每个字符串均有不同随机密钥）,
-    // 也可以指定一个固定的密钥：HardCodeKeyGenerator("This is a key")
+    // Optional (added in v3.0): key generator. Default uses a random 8-byte key (different per string).
+    // You can also use a fixed key: HardCodeKeyGenerator("This is a key")
     kg new RandomKeyGenerator()
-    // 可选（4.0版本新增）：用于控制字符串加密后在字节码中的存在形式, 默认为base64，
-    // 也可以使用text或者bytes
+    // Optional (added in v4.0): control how encrypted data appears in bytecode; default is base64.
+    // Also supports text or bytes.
     mode StringFogMode.base64
 }
 ```
 
-kts中配置参考
+KTS example:
 ```kotlin
 plugins {
-    //...lib or application
+    // ... library or application
     id("stringfog")
 }
 apply(plugin = "stringfog")
 
 configure<StringFogExtension> {
-    // 必要：加解密库的实现类路径，需和上面配置的加解密算法库一致。
+    // Required: encryption implementation class, must match the dependency used below.
     implementation = "com.github.megatronking.stringfog.xor.StringFogImpl"
-    // 可选：加密开关，默认开启。
+    // Optional: enable/disable encryption (default: true).
     enable = true
-    // 可选：指定需加密的代码包路径，可配置多个，未指定将默认全部加密。
+    // Optional: specify packages to encrypt.
     // fogPackages = arrayOf("com.xxx.xxx")
     kg = com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator()
-    // base64或者bytes
+    // base64 or bytes
     mode = com.github.megatronking.stringfog.plugin.StringFogMode.bytes
 }
 ```
 
-##### 3、在app或lib的build.gradle中引入加解密库依赖。
+#### 3) Add the runtime encryption implementation dependency in your module `build.gradle`:
 
 ```groovy
 dependencies {
       ...
-      // 这里要和上面选用的加解密算法库一致，用于运行时解密。
+      // This must match the encryption implementation chosen above; it's used at runtime to decrypt strings.
       compile 'com.github.megatronking.stringfog:xor:5.0.0'
 }
 ```
 
-##### 注意事项
-从AGP 8.0开始，默认不生成BuildConfig，但是StringFog依赖此配置，请注意加上下面的配置。
+#### Important
+Starting with AGP 8.0, BuildConfig is not generated by default, but StringFog relies on it. Make sure to enable it:
 ```kotlin
 android {
-    // 注意请加上此配置
+    // Please add this configuration
     buildFeatures {
         buildConfig = true
     }
@@ -125,128 +128,127 @@ android {
 }
 ```
 
-### 扩展
+### Extensions
 
-#### 注解反加密
-如果开发者有不需要自动加密的类，可以使用注解StringFogIgnore来忽略：
+#### Annotation to skip encryption
+If you have classes that should not be automatically encrypted, use the `@StringFogIgnore` annotation:
 ```java
 @StringFogIgnore
 public class Test {
     ...
 }
 ```
-#### 自定义加解密算法实现
-实现IStringFog接口，参考stringfog-ext目录下面的xor算法实现。
-注意某些算法在不同平台上会有差异，可能出现在运行时无法正确解密的问题。如何集成请参考下方范例！
+
+#### Custom encryption implementation
+Implement the `IStringFog` interface — see the `stringfog-ext` modules for the XOR example.
+Note that some algorithms may behave differently across platforms, which can cause runtime decryption failures. Example:
 ```java
 public final class StringFogImpl implements IStringFog {
 
     @Override
     public byte[] encrypt(String data, byte[] key) {
-        // 自定义加密
+        // custom encryption
     }
 
     @Override
     public String decrypt(byte[] data, byte[] key) {
-        // 自定义解密
+        // custom decryption
     }
 
     @Override
     public boolean shouldFog(String data) {
-        // 控制指定字符串是否加密
-        // 建议过滤掉不重要或者过长的字符串
+        // control whether a string should be encrypted
+        // Recommend filtering out unimportant or very long strings
         return true;
     }
 
 }
-
 ```
 
-#### 自定义密钥生成器
-实现IKeyGenerator接口，参考RandomKeyGenerator的实现。
+#### Custom key generator
+Implement the `IKeyGenerator` interface — see `RandomKeyGenerator` for reference.
 
-#### Mapping文件
-**注意⚠️：StringFog 5.x版本起有问题，已暂时停用此功能**
-加解密的字符串明文和暗文会自动生成mapping映射文件，位于outputs/mapping/stringfog.txt。
+#### Mapping file
+**Note ⚠️: Mapping generation has issues in StringFog v5.x and is temporarily disabled.**
+When enabled, a mapping file that links plaintext to ciphertext is generated at `outputs/mapping/stringfog.txt`.
 
-## 范例
-- 默认加解密算法集成，参考[sample1](https://github.com/MegatronKing/StringFog-Sample1)
-- 自定义加解密算法集成，参考[sample2](https://github.com/MegatronKing/StringFog-Sample2)
+## Samples
+- Default encryption implementation: [StringFog-Sample1](https://github.com/MegatronKing/StringFog-Sample1)
+- Custom encryption implementation: [StringFog-Sample2](https://github.com/MegatronKing/StringFog-Sample2)
 
-## 更新日志
+## Changelog
 
 ### v5.2.0
-- 从ASM7升级到ASM9。
-- 修复多模块配置问题。
+- Upgraded ASM from v7 to v9.
+- Fixed multi-module configuration issues.
 
 ### v5.1.0
-- 修复获取无法获取packageName的问题。
-- 修复无法指定KeyGenerator的问题。
-- 优化生成StringFog.java文件的任务逻辑。
-- 暂时移除Mapping文件生成逻辑，可能导致无法删除的问题。
+- Fixed issue obtaining packageName in some cases.
+- Fixed specifying a custom KeyGenerator.
+- Improved task logic for generating `StringFog.java`.
+- Temporarily removed mapping file generation due to deletion issues.
 
 ### v5.0.0
-- 支持Gradle 8.0。
+- Added support for Gradle 8.0.
 
 ### v4.0.1
-- 修复Base64 API版本兼容问题。
+- Fixed Base64 API compatibility issue.
 
 ### v4.0.0
-- 使用ASM7以支持Android 12。
-- 支持AGP(Android Gradle Plugin) 7.x版本。
-- DSL新增StringFogMode选项，用于控制字符串加密后在字节码中的存在形式，支持base64和bytes两种模式，默认使用base64。
-    - base64模式：将字符串加密后的字节序列使用base64编码，行为同1.x和2.x版本。
-    - bytes模式：将字符串加密后的字节序列直接呈现在字节码中，行为同3.x版本。
+- Updated to ASM7 to support Android 12.
+- Added support for AGP 7.x.
+- Added `StringFogMode` DSL option to control how encrypted data appears in bytecode — supports `base64` and `bytes` (default `base64`).
+  - `base64` mode: encrypted bytes are Base64-encoded in bytecode (same behavior as v1.x and v2.x).
+  - `bytes` mode: encrypted bytes are directly embedded in bytecode (same behavior as v3.x).
 
 ### v3.0.0
-- 密文不再以String形式存在，改为直接字节数组，感谢PR #50。
-- 重构公开API相关代码（不兼容历史版本）。
-- 删除AES加密实现，考虑到存在bug和性能问题且意义不大。
-- xor算法移除base64编码。
-- 固定加密字符串key改为随机key，且提供IKeyGenerator接口支持自定义实现。
-- 插件依赖的ASM库由5.x升级到9.2。
+- Ciphertext is no longer stored as a `String`, but as a raw byte array (thanks to PR #50).
+- Public API refactor (breaking changes).
+- Removed AES implementation due to bugs and performance concerns.
+- XOR algorithm no longer uses Base64 encoding.
+- Per-string random keys replaced fixed key; `IKeyGenerator` added for custom implementations.
+- Plugin ASM dependency upgraded to 9.2.
 
 ### v2.2.1
-- 修复module-info类导致的报错问题
+- Fixed crash caused by `module-info` classes.
 
 ### v2.2.0
-- 支持AGP(Android Gradle Plugin) 3.3.0+版本
+- Added support for AGP 3.3.0+.
 
 ### v2.1.0
-- 修复kotlin打包的bug
+- Fixed Kotlin packaging bug.
 
 ### v2.0.1
-- 增加implementation自定义算法实现类详细报错信息
+- Improved error messages for custom `implementation` algorithm classes.
 
 ### v2.0.0
-- 修改gradle配置（必须配置implementation指定算法实现）。
-- 修复大字符串编译失败的问题。
-- 新增自定义加解密算法扩展。
-- 新增生成mapping映射表文件。
+- Modified Gradle configuration (now requires `implementation` to specify algorithm implementation).
+- Fixed compilation failures for large strings.
+- Added custom encryption extension support.
+- Added generation of mapping file.
 
 ### v1.4.1
-- 修复使用Java 8时出现的ZipException编译错误
+- Fixed `ZipException` compilation error when using Java 8.
 
 ### v1.4.0
-- 新增指定包名加密的配置项：fogPackages
-- 移除指定包名不加密的配置项：exclude
+- Added `fogPackages` option to specify packages to encrypt.
+- Removed `exclude` option.
 
 ### v1.3.0
-- 修复gradle 3.0+编译报错的bug
+- Fixed Gradle 3.0+ compile error.
 
 ### v1.2.2
-- 修复windows下打包后报错的bug
+- Fixed packaging bug on Windows.
 
 ### v1.2.1
-- 修复windows下文件分隔符的bug
-- 修复applicationId和packageName不一致导致无法编译的bug
-- 优化功能，不需要再手动exclude已使用StringFog的库
+- Fixed file separator bug on Windows.
+- Fixed compile issue when `applicationId` and `packageName` differ.
+- Improved behavior so libraries already processed by StringFog need not be manually excluded.
 
 ### v1.2.0
-- 支持在library中使用，每个library可以使用不同key
-- 支持exclude指定包名不进行加密
-- 修复一些已知bug
-
+- Support for use inside libraries; each library can use a different key.
+- Support `exclude` to skip specified packages.
+- Fixed several known bugs.
 
 --------
 
@@ -263,3 +265,5 @@ public final class StringFogImpl implements IStringFog {
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+
+```
